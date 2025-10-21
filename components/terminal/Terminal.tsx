@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { generateId } from "@/lib/utils";
+import { parseUICommands } from "@/lib/ui-parser";
 import type { Message, Component } from "@/types";
 import { useCanvas } from "@/lib/canvas-context";
 import MessageList from "./MessageList";
@@ -81,43 +82,24 @@ export default function Terminal() {
 
             if (data.type === "message") {
               assistantContent += data.content;
-              // Update assistant message with accumulated content
+
+              // Parse UI commands from content
+              const parsed = parseUICommands(assistantContent);
+
+              // Update assistant message with text only (UI commands removed)
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantId
-                    ? { ...msg, content: assistantContent }
+                    ? { ...msg, content: parsed.text }
                     : msg
                 )
               );
 
-              // Send to display agent for visualization (debounced)
-              if (assistantContent.length % 100 === 0 || assistantContent.length < 50) {
-                fetch("/api/display", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    conversationText: `User: ${content}\n\nAssistant: ${assistantContent}`,
-                  }),
-                })
-                  .then((res) => res.json())
-                  .then((command) => {
-                    if (command.action === "render") {
-                      const newComponent: Component = {
-                        id: command.componentId,
-                        type: command.type,
-                        position: command.position || "auto",
-                        size: command.size || { width: 500, height: 300 },
-                        props: command.props || {},
-                      };
-                      addComponent(newComponent);
-                    } else if (command.action === "update") {
-                      updateComponent(command.componentId, command.props);
-                    } else if (command.action === "destroy") {
-                      removeComponent(command.componentId);
-                    }
-                  })
-                  .catch(console.error);
-              }
+              // Add any new components to canvas
+              parsed.components.forEach((component) => {
+                // Check if component already added
+                addComponent(component);
+              });
             } else if (data.type === "done") {
               conversationHistory.current.push({
                 role: "assistant",
