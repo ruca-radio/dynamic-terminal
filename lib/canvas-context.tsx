@@ -8,6 +8,7 @@ interface CanvasContextType {
   addComponent: (component: Component) => void;
   updateComponent: (id: string, props: Record<string, any>) => void;
   removeComponent: (id: string) => void;
+  clearCanvas: () => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
@@ -31,9 +32,13 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
     setComponents((prev) => prev.filter((comp) => comp.id !== id));
   };
 
+  const clearCanvas = () => {
+    setComponents([]);
+  };
+
   return (
     <CanvasContext.Provider
-      value={{ components, addComponent, updateComponent, removeComponent }}
+      value={{ components, addComponent, updateComponent, removeComponent, clearCanvas }}
     >
       {children}
     </CanvasContext.Provider>

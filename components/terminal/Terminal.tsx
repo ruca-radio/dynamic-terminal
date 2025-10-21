@@ -9,7 +9,7 @@ import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 
 export default function Terminal() {
-  const { addComponent, updateComponent, removeComponent } = useCanvas();
+  const { addComponent, updateComponent, removeComponent, clearCanvas } = useCanvas();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
@@ -86,6 +86,13 @@ export default function Terminal() {
               // Parse UI commands from content
               const parsed = parseUICommands(assistantContent);
 
+              // Handle commands (clear, etc.)
+              parsed.commands.forEach((cmd) => {
+                if (cmd.type === "clear") {
+                  clearCanvas();
+                }
+              });
+
               // Update assistant message with text only (UI commands removed)
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -97,7 +104,6 @@ export default function Terminal() {
 
               // Add any new components to canvas
               parsed.components.forEach((component) => {
-                // Check if component already added
                 addComponent(component);
               });
             } else if (data.type === "done") {

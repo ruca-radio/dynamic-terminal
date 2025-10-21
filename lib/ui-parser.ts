@@ -4,18 +4,91 @@ import { generateId } from "./utils";
 export interface ParsedContent {
   text: string;
   components: Component[];
+  commands: UICommand[];
+}
+
+export interface UICommand {
+  type: "clear" | "layout";
+  data?: any;
 }
 
 /**
  * Parse UI syntax from assistant messages
- * Syntax: ::type::...data...::/type::
+ * Supports: components, layouts, clear command
  */
 export function parseUICommands(content: string): ParsedContent {
   const components: Component[] = [];
+  const commands: UICommand[] = [];
   let text = content;
 
+  // Check for ::clear:: command
+  if (content.includes("::clear::")) {
+    commands.push({ type: "clear" });
+    text = text.replace(/::clear::/g, "");
+  }
+
+  // Parse layout containers (::layout::...components...::/layout::)
+  const layoutRegex = /::(layout)\s+([^:]+)::(.+?)::\/(layout)::/gs;
+  let layoutMatch;
+
+  while ((layoutMatch = layoutRegex.exec(content)) !== null) {
+    const attrs = parseAttributes(layoutMatch[2]);
+    const innerContent = layoutMatch[3];
+
+    // Parse components inside layout
+    const innerParsed = parseComponents(innerContent);
+
+    // Create layout wrapper component
+    const layoutComponent: Component = {
+      id: `layout-${generateId()}`,
+      type: "Layout",
+      position: "auto",
+      size: { width: 0, height: 0 }, // Layout handles its own size
+      props: {
+        type: attrs.type || "flex",
+        cols: parseInt(attrs.cols || "1"),
+        rows: parseInt(attrs.rows || "1"),
+        gap: parseInt(attrs.gap || "20"),
+        direction: attrs.direction || "row",
+        children: innerParsed,
+      },
+    };
+
+    components.push(layoutComponent);
+    text = text.replace(layoutMatch[0], "");
+  }
+
+  // Parse standalone components
+  const standaloneComponents = parseComponents(content);
+  components.push(...standaloneComponents);
+
+  // Remove all component syntax from text
+  text = text.replace(/::(table|tasks|metric|chart|panel|compare|progress)::[\s\S]*?::\/(table|tasks|metric|chart|panel|compare|progress)::/g, "");
+
+  return {
+    text: text.trim(),
+    components,
+    commands,
+  };
+}
+
+function parseAttributes(attrString: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const regex = /(\w+)="([^"]+)"/g;
+  let match;
+
+  while ((match = regex.exec(attrString)) !== null) {
+    attrs[match[1]] = match[2];
+  }
+
+  return attrs;
+}
+
+function parseComponents(content: string): Component[] {
+  const components: Component[] = [];
+
   // Regex to match ::type::...data...::/type::
-  const regex = /::(table|tasks|metric|chart)::(.+?)::\/(table|tasks|metric|chart)::/gs;
+  const regex = /::(table|tasks|metric|chart|panel|compare|progress)::(.+?)::\/(table|tasks|metric|chart|panel|compare|progress)::/gs;
 
   let match;
   while ((match = regex.exec(content)) !== null) {
@@ -23,7 +96,6 @@ export function parseUICommands(content: string): ParsedContent {
     const dataStr = match[2].trim();
     const closeType = match[3];
 
-    // Validate matching tags
     if (type !== closeType) {
       console.error(`Mismatched tags: ::${type}:: and ::/${closeType}::`);
       continue;
@@ -38,29 +110,30 @@ export function parseUICommands(content: string): ParsedContent {
         tasks: "TaskWindow",
         metric: "MetricCard",
         chart: "Chart",
+        panel: "TextPanel",
+        compare: "ComparisonCard",
+        progress: "ProgressBar",
       };
 
       const component: Component = {
-        id: `${type}-${generateId()}`,
+        id: data.id || `${type}-${generateId()}`,
         type: componentTypeMap[type] || "DataTable",
-        position: "auto",
-        size: { width: 500, height: 300 },
+        position: data.style?.position || "auto",
+        size: {
+          width: parseInt(data.style?.width) || 500,
+          height: parseInt(data.style?.height) || 300,
+        },
         props: data,
+        zIndex: data.style?.zIndex,
       };
 
       components.push(component);
-
-      // Remove the UI command from text
-      text = text.replace(match[0], "");
     } catch (e) {
       console.error(`Failed to parse ${type} data:`, e);
     }
   }
 
-  return {
-    text: text.trim(),
-    components,
-  };
+  return components;
 }
 
 /**
