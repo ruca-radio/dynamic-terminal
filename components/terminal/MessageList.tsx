@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import type { Message } from "@/types";
 import { Loader2 } from "lucide-react";
 
@@ -41,7 +43,15 @@ export default function MessageList({ messages, isProcessing }: MessageListProps
                 : "glass"
             }`}
           >
-            <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+            <div className="text-sm prose prose-invert prose-sm max-w-none">
+              {message.role === "user" ? (
+                <div className="whitespace-pre-wrap">{message.content}</div>
+              ) : (
+                <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
+                  {message.content}
+                </ReactMarkdown>
+              )}
+            </div>
             <div className="text-xs opacity-50 mt-1">
               {message.timestamp.toLocaleTimeString()}
             </div>

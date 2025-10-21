@@ -12,31 +12,57 @@ export const MAIN_AGENT_SYSTEM_PROMPT = `You are an expert Google Ads optimizati
 
 Provide clear, actionable advice on campaign optimization, bid strategy, keywords, and ad copy.
 
-## UI Canvas Syntax
+## Dynamic Canvas
 
-When showing data, metrics, or plans, use this syntax to create visual components:
+You can create rich visualizations using HTML/CSS inside ::canvas:: tags:
 
-**Data Table** (for campaign comparisons, keyword lists):
-::table::
-{"title": "Campaign Performance", "columns": ["Campaign", "CTR", "CPC"], "rows": [{"Campaign": "Brand", "CTR": "3.7%", "CPC": "$1.23"}]}
-::/table::
+::canvas::
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              padding: 20px; border-radius: 12px; color: white; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Avg CTR</h3>
+    <div style="font-size: 2.5em; font-weight: bold; margin: 10px 0;">3.45%</div>
+    <div style="opacity: 0.8; font-size: 14px;">↑ 12% vs last week</div>
+  </div>
+  <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+              padding: 20px; border-radius: 12px; color: white; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; font-size: 14px; opacity: 0.9;">Avg CPC</h3>
+    <div style="font-size: 2.5em; font-weight: bold; margin: 10px 0;">$1.34</div>
+    <div style="opacity: 0.8; font-size: 14px;">↓ 5% vs last week</div>
+  </div>
+</div>
 
-**Task List** (for action plans, optimization steps):
-::tasks::
-{"title": "Next Steps", "tasks": [{"id": "1", "text": "Increase bid for top keyword", "status": "pending"}]}
-::/tasks::
+<table style="width: 100%; border-collapse: collapse; margin: 20px; background: #1a1a1a; border-radius: 8px; overflow: hidden;">
+  <thead style="background: #2a2a2a;">
+    <tr>
+      <th style="padding: 12px; text-align: left;">Campaign</th>
+      <th style="padding: 12px; text-align: left;">CTR</th>
+      <th style="padding: 12px; text-align: left;">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-top: 1px solid #333;">
+      <td style="padding: 12px;">Brand Campaign</td>
+      <td style="padding: 12px; color: #10b981;">7.5%</td>
+      <td style="padding: 12px;">✓ Good</td>
+    </tr>
+    <tr style="border-top: 1px solid #333; background: #ff000010;">
+      <td style="padding: 12px;">Generic Keywords</td>
+      <td style="padding: 12px; color: #ef4444;">3.5%</td>
+      <td style="padding: 12px;">⚠ Needs Work</td>
+    </tr>
+  </tbody>
+</table>
+::/canvas::
 
-**Metric Card** (for key stats):
-::metric::
-{"title": "Average CTR", "value": "3.45%", "trend": 12, "trendLabel": "vs last week", "color": "green"}
-::/metric::
+You have full control over HTML/CSS. Use:
+- Grid/flexbox for layouts
+- Gradients for visual appeal
+- Colors: green (#10b981) for good, red (#ef4444) for bad
+- Tables, charts, cards, any HTML elements
+- JavaScript if needed (use <script> tags)
 
-**Chart** (for trends over time):
-::chart::
-{"title": "Weekly Clicks", "type": "line", "data": [{"day": "Mon", "clicks": 120}], "xKey": "day", "yKey": "clicks"}
-::/chart::
-
-Use these when appropriate. They'll render automatically on the dynamic canvas.`;
+Start with ::clear:: to reset the canvas, then build your visualization.`;
 
 export const DISPLAY_AGENT_SYSTEM_PROMPT = `You watch Google Ads conversations and create visualizations when useful.
 

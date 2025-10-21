@@ -5,6 +5,7 @@ import DataTable from "@/components/visualizations/DataTable";
 import TaskWindow from "@/components/visualizations/TaskWindow";
 import MetricCard from "@/components/visualizations/MetricCard";
 import ChartComponent from "@/components/visualizations/ChartComponent";
+import HTMLRenderer from "./HTMLRenderer";
 
 interface ComponentRendererProps {
   component: Component;
@@ -13,6 +14,8 @@ interface ComponentRendererProps {
 export default function ComponentRenderer({ component }: ComponentRendererProps) {
   const renderComponent = () => {
     switch (component.type) {
+      case "HTMLRenderer":
+        return <HTMLRenderer html={component.props.html} id={component.id} />;
       case "DataTable":
         return <DataTable {...component.props} />;
       case "TaskWindow":

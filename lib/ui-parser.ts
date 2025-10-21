@@ -63,6 +63,7 @@ export function parseUICommands(content: string): ParsedContent {
   components.push(...standaloneComponents);
 
   // Remove all component syntax from text
+  text = text.replace(/::canvas::[\s\S]*?::\/(canvas)::/g, "");
   text = text.replace(/::(table|tasks|metric|chart|panel|compare|progress)::[\s\S]*?::\/(table|tasks|metric|chart|panel|compare|progress)::/g, "");
 
   return {
@@ -87,7 +88,25 @@ function parseAttributes(attrString: string): Record<string, string> {
 function parseComponents(content: string): Component[] {
   const components: Component[] = [];
 
-  // Regex to match ::type::...data...::/type::
+  // Parse ::canvas:: HTML blocks
+  const canvasRegex = /::canvas::([\s\S]+?)::\/(canvas)::/gs;
+  let canvasMatch;
+
+  while ((canvasMatch = canvasRegex.exec(content)) !== null) {
+    const html = canvasMatch[1].trim();
+
+    const component: Component = {
+      id: `canvas-${generateId()}`,
+      type: "HTMLRenderer",
+      position: "auto",
+      size: { width: 0, height: 0 }, // Auto-size based on content
+      props: { html },
+    };
+
+    components.push(component);
+  }
+
+  // Parse structured component types (legacy support)
   const regex = /::(table|tasks|metric|chart|panel|compare|progress)::(.+?)::\/(table|tasks|metric|chart|panel|compare|progress)::/gs;
 
   let match;
