@@ -4,8 +4,9 @@ export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-export const MAIN_AGENT_MODEL = "claude-sonnet-4-20250514";
-export const DISPLAY_AGENT_MODEL = "claude-3-5-haiku-20241022";
+// Latest models from Anthropic API (as of Oct 2025)
+export const MAIN_AGENT_MODEL = "claude-sonnet-4-5-20250929"; // Sonnet 4.5 (latest)
+export const DISPLAY_AGENT_MODEL = "claude-haiku-4-5-20251001"; // Haiku 4.5 (latest)
 
 export const MAIN_AGENT_SYSTEM_PROMPT = `You are an expert Google Ads optimization specialist. Your role is to:
 

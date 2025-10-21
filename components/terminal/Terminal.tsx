@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { generateId } from "@/lib/utils";
 import type { Message } from "@/types";
 import MessageList from "./MessageList";
@@ -16,61 +16,10 @@ export default function Terminal() {
     },
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+  const conversationHistory = useRef<any[]>([]);
 
-  useEffect(() => {
-    // Initialize WebSocket connection to main chat agent
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/chat`);
-
-    ws.onopen = () => {
-      console.log("Connected to main agent");
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "message") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: generateId(),
-            role: "assistant",
-            content: data.content,
-            timestamp: new Date(),
-          },
-        ]);
-      } else if (data.type === "done") {
-        setIsProcessing(false);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          role: "system",
-          content: "Connection error. Please refresh the page.",
-          timestamp: new Date(),
-        },
-      ]);
-    };
-
-    ws.onclose = () => {
-      console.log("Disconnected from main agent");
-    };
-
-    wsRef.current = ws;
-
-    return () => {
-      ws.close();
-    };
-  }, []);
-
-  const handleSendMessage = (content: string) => {
-    if (!content.trim() || !wsRef.current) return;
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || isProcessing) return;
 
     // Add user message
     const userMessage: Message = {
@@ -82,8 +31,96 @@ export default function Terminal() {
     setMessages((prev) => [...prev, userMessage]);
     setIsProcessing(true);
 
-    // Send to WebSocket
-    wsRef.current.send(JSON.stringify({ content }));
+    // Add to conversation history
+    conversationHistory.current.push({ role: "user", content });
+
+    try {
+      // Call chat API with streaming
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: content,
+          conversationHistory: conversationHistory.current,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("API request failed");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+      const assistantId = generateId();
+
+      // Add initial assistant message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ]);
+
+      // Stream the response
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter((line) => line.trim());
+
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+
+            if (data.type === "message") {
+              assistantContent += data.content;
+              // Update assistant message with accumulated content
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantId
+                    ? { ...msg, content: assistantContent }
+                    : msg
+                )
+              );
+
+              // Also send to display agent for visualization
+              fetch("/api/display", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  conversationText: `User: ${content}\n\nAssistant: ${assistantContent}`,
+                }),
+              }).catch(console.error);
+            } else if (data.type === "done") {
+              conversationHistory.current.push({
+                role: "assistant",
+                content: assistantContent,
+              });
+              setIsProcessing(false);
+            }
+          } catch (e) {
+            console.error("Error parsing stream:", e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: "system",
+          content: "Error connecting to AI. Please try again.",
+          timestamp: new Date(),
+        },
+      ]);
+      setIsProcessing(false);
+    }
   };
 
   return (
