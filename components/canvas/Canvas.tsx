@@ -1,64 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Component } from "@/types";
+import { useCanvas } from "@/lib/canvas-context";
 import ComponentRenderer from "./ComponentRenderer";
 
 export default function Canvas() {
-  const [components, setComponents] = useState<Component[]>([]);
-
-  useEffect(() => {
-    // Initialize WebSocket connection to display agent
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${protocol}//${window.location.host}/api/display`);
-
-    ws.onopen = () => {
-      console.log("Connected to display agent");
-    };
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.action === "render") {
-        // Create new component
-        const newComponent: Component = {
-          id: data.componentId,
-          type: data.type,
-          position: data.position || "auto",
-          size: data.size || { width: 400, height: 300 },
-          props: data.props || {},
-        };
-        setComponents((prev) => [...prev, newComponent]);
-      } else if (data.action === "update") {
-        // Update existing component
-        setComponents((prev) =>
-          prev.map((comp) =>
-            comp.id === data.componentId
-              ? { ...comp, props: { ...comp.props, ...data.props } }
-              : comp
-          )
-        );
-      } else if (data.action === "destroy") {
-        // Remove component
-        setComponents((prev) =>
-          prev.filter((comp) => comp.id !== data.componentId)
-        );
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("Display agent WebSocket error:", error);
-    };
-
-    ws.onclose = () => {
-      console.log("Disconnected from display agent");
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, []);
+  const { components } = useCanvas();
 
   return (
     <div className="h-full w-full relative bg-background/50">

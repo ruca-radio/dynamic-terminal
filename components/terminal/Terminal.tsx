@@ -2,11 +2,13 @@
 
 import { useState, useRef } from "react";
 import { generateId } from "@/lib/utils";
-import type { Message } from "@/types";
+import type { Message, Component } from "@/types";
+import { useCanvas } from "@/lib/canvas-context";
 import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 
 export default function Terminal() {
+  const { addComponent, updateComponent, removeComponent } = useCanvas();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
@@ -88,14 +90,34 @@ export default function Terminal() {
                 )
               );
 
-              // Also send to display agent for visualization
-              fetch("/api/display", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  conversationText: `User: ${content}\n\nAssistant: ${assistantContent}`,
-                }),
-              }).catch(console.error);
+              // Send to display agent for visualization (debounced)
+              if (assistantContent.length % 100 === 0 || assistantContent.length < 50) {
+                fetch("/api/display", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    conversationText: `User: ${content}\n\nAssistant: ${assistantContent}`,
+                  }),
+                })
+                  .then((res) => res.json())
+                  .then((command) => {
+                    if (command.action === "render") {
+                      const newComponent: Component = {
+                        id: command.componentId,
+                        type: command.type,
+                        position: command.position || "auto",
+                        size: command.size || { width: 500, height: 300 },
+                        props: command.props || {},
+                      };
+                      addComponent(newComponent);
+                    } else if (command.action === "update") {
+                      updateComponent(command.componentId, command.props);
+                    } else if (command.action === "destroy") {
+                      removeComponent(command.componentId);
+                    }
+                  })
+                  .catch(console.error);
+              }
             } else if (data.type === "done") {
               conversationHistory.current.push({
                 role: "assistant",
