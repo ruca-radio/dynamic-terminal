@@ -9,12 +9,15 @@ interface CanvasContextType {
   updateComponent: (id: string, props: Record<string, any>) => void;
   removeComponent: (id: string) => void;
   clearCanvas: () => void;
+  isRendering: boolean;
+  setIsRendering: (rendering: boolean) => void;
 }
 
 const CanvasContext = createContext<CanvasContextType | undefined>(undefined);
 
 export function CanvasProvider({ children }: { children: ReactNode }) {
   const [components, setComponents] = useState<Component[]>([]);
+  const [isRendering, setIsRendering] = useState(false);
 
   const addComponent = (component: Component) => {
     setComponents((prev) => [...prev, component]);
@@ -38,7 +41,7 @@ export function CanvasProvider({ children }: { children: ReactNode }) {
 
   return (
     <CanvasContext.Provider
-      value={{ components, addComponent, updateComponent, removeComponent, clearCanvas }}
+      value={{ components, addComponent, updateComponent, removeComponent, clearCanvas, isRendering, setIsRendering }}
     >
       {children}
     </CanvasContext.Provider>

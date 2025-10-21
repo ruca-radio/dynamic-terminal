@@ -9,7 +9,7 @@ import MessageList from "./MessageList";
 import InputArea from "./InputArea";
 
 export default function Terminal() {
-  const { addComponent, updateComponent, removeComponent, clearCanvas } = useCanvas();
+  const { addComponent, updateComponent, removeComponent, clearCanvas, setIsRendering } = useCanvas();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
@@ -20,6 +20,8 @@ export default function Terminal() {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const conversationHistory = useRef<any[]>([]);
+  const currentCanvasHtml = useRef<string>("");
+  const currentCanvasId = useRef<string>("");
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isProcessing) return;
@@ -83,6 +85,43 @@ export default function Terminal() {
             if (data.type === "message") {
               assistantContent += data.content;
 
+              // Check if we're entering canvas mode
+              if (assistantContent.includes("::canvas::") && !currentCanvasId.current) {
+                setIsRendering(true);
+                currentCanvasId.current = `canvas-${generateId()}`;
+                currentCanvasHtml.current = "";
+              }
+
+              // If in canvas mode, extract and update canvas content
+              if (currentCanvasId.current) {
+                const canvasMatch = assistantContent.match(/::canvas::([\s\S]*?)(::\/(canvas)::)?$/);
+                if (canvasMatch) {
+                  const html = canvasMatch[1];
+                  currentCanvasHtml.current = html;
+
+                  // Progressively update or create component
+                  const existingComponent = parsed.components.find(c => c.id === currentCanvasId.current);
+
+                  if (existingComponent) {
+                    updateComponent(currentCanvasId.current, { html });
+                  } else {
+                    addComponent({
+                      id: currentCanvasId.current,
+                      type: "HTMLRenderer",
+                      position: "auto",
+                      size: { width: 0, height: 0 },
+                      props: { html },
+                    });
+                  }
+
+                  // Check if canvas is closed
+                  if (canvasMatch[2]) {
+                    setIsRendering(false);
+                    currentCanvasId.current = "";
+                  }
+                }
+              }
+
               // Parse UI commands from content
               const parsed = parseUICommands(assistantContent);
 
@@ -101,12 +140,10 @@ export default function Terminal() {
                     : msg
                 )
               );
-
-              // Add any new components to canvas
-              parsed.components.forEach((component) => {
-                addComponent(component);
-              });
             } else if (data.type === "done") {
+              setIsRendering(false);
+              currentCanvasId.current = "";
+              currentCanvasHtml.current = "";
               conversationHistory.current.push({
                 role: "assistant",
                 content: assistantContent,
